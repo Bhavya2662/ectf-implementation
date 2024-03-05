@@ -9,6 +9,7 @@
 
 use paillier::*;
 use curv::BigInt;
+use curv::arithmetic::Modulo;
 use curv::arithmetic::traits::Converter;
 use curv::arithmetic::Zero;
 use curv::arithmetic::Samplable;
@@ -110,38 +111,54 @@ fn ectf_protocol(
     let y2 = p2.y_coord().unwrap();
 
     // Alice and Bob sample random values
-    let zp = Scalar::<Secp256k1>::group_order();   
+    let zp = Scalar::<Secp256k1>::group_order();  
+    dbg!(&zp); 
 
     let rho_1 = BigInt::sample_below(&zp);
+    dbg!(&rho_1); 
     let rho_2 = BigInt::sample_below(&zp);
+    dbg!(&rho_2);
 
     // Alice and Bob run MTA
     let (alpha_1, alpha_2) = mta_2(&Scalar::<Secp256k1>::from(-x1.clone()), &rho_1, &rho_2, &Scalar::<Secp256k1>::from(x2.clone()));
-
+    dbg!(&alpha_1);
+    dbg!(&alpha_2);
     // Compute delta values
     let delta_1 = -x1.clone() * rho_1.clone() + alpha_1.clone().to_bigint();
     let delta_2 = x2.clone() * rho_2.clone() + alpha_2.clone().to_bigint();
+    dbg!(&delta_1);
+    dbg!(&delta_2);
 
     let delta = delta_1 + delta_2;
+    dbg!(&delta);
+    let delta_inv = BigInt::mod_inv(&delta, &zp),unwrap();
+    dbg!(&delta_inv);
+    
 
     // Compute eta values
-    let eta_1 = rho_1/delta.clone();
-    let eta_2 = rho_2/delta.clone();
+    let eta_1 = rho_1*delta_inv.clone();
+    let eta_2 = rho_2*delta_inv.clone();
+    dbg!(&eta_1);
+    dbg!(&eta_2);
 
     // Run MTA for beta values
     let (beta_1, beta_2) = mta_2(&Scalar::<Secp256k1>::from(-y1.clone()), &eta_1, &eta_2, &Scalar::<Secp256k1>::from(y2.clone()));
-
+    dbg!(&beta_1);
+    dbg!(&beta_2);
     // Compute lambda values
     let lambda_1 = -y1 * eta_1 + beta_1.clone().to_bigint();
     let lambda_2 = y2 * eta_2 + beta_2.clone().to_bigint();
-
+    dbg!(&lambda_1);
+    dbg!(&lambda_2);
     // Run MTA for gamma values
     let (gamma_1, gamma_2) = mta(&Scalar::<Secp256k1>::from(lambda_1.clone()), &Scalar::<Secp256k1>::from(lambda_2.clone()));
-
+    dbg!(&gamma_1);
+    dbg!(&gamma_2);
     // Compute final output s values
-    let s1 = BigInt::from(2) * gamma_1.to_bigint() + lambda_1.clone()*lambda_1.clone() - x1;
-    let s2 = BigInt::from(2) * gamma_2.to_bigint() + lambda_2.clone()*lambda_2.clone() - x2;
-
+    let s1 = (BigInt::from(2) * gamma_1.to_bigint()) +( (lambda_1.clone()*lambda_1.clone()) - x1.clone());
+    let s2 = (BigInt::from(2) * gamma_2.to_bigint()) + ((lambda_2.clone()*lambda_2.clone()) - x2.clone());
+    dbg!(&s1);
+    dbg!(&s2);
     (s1.into(), s2.into())
 }
 fn main() {
