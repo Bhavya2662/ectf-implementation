@@ -154,7 +154,7 @@ fn main() {
 
     // Check if s1 + s2 = x where (x, y) = p1 + p2.
     let p3 = p1 + p2;
-    assert_eq!(s1 + s2, Scalar::<Secp256k1>::from(p3.x_coord().unwrap()));
+    assert_eq!((s1 + s2).to_bigint(), p3.x_coord().unwrap());
 
     println!("ECtF protocol completed successfully.");
 }
