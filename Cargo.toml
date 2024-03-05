@@ -7,3 +7,8 @@ edition = "2021"
 
 [dependencies]
 curv-kzen = "0.10.0"
+
+[dependencies.paillier]
+package = "kzen-paillier"
+version = "*"
+default-features = false
