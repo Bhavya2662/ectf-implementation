@@ -133,10 +133,9 @@ fn ectf_protocol(
 
     dbg!(&delta);
     let gcd = delta.gcd(&zp);
-if gcd != BigInt::from(1) {
-    // Handle the error case, for example, by returning an error, retrying with different random values, or using a different protocol that doesn't require modular inversion.
-    panic!("GCD of delta and zp is not 1, modular inverse does not exist.");
-}
+    if gcd != BigInt::from(1) {
+        panic!("GCD of delta and zp is not 1, modular inverse does not exist.");
+    }
     let delta_inv = BigInt::mod_inv(&delta, &zp).unwrap();
     dbg!(&delta_inv);
     
