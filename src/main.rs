@@ -6,7 +6,7 @@
 #![allow(unused_variables)]
 #![allow(unused_parens)]
 #![allow(dead_code)]
-
+use curv::arithmetic::Integer;
 use paillier::*;
 use curv::BigInt;
 use curv::arithmetic::Modulo;
@@ -122,16 +122,22 @@ fn ectf_protocol(
     // Alice and Bob run MTA
     let (alpha_1, alpha_2) = mta_2(&Scalar::<Secp256k1>::from(-x1.clone()), &rho_1, &rho_2, &Scalar::<Secp256k1>::from(x2.clone()));
     dbg!(&alpha_1);
-    dbg!(&alpha_2);
+    dbg!(&alpha_2); 
     // Compute delta values
     let delta_1 = -x1.clone() * rho_1.clone() + alpha_1.clone().to_bigint();
     let delta_2 = x2.clone() * rho_2.clone() + alpha_2.clone().to_bigint();
     dbg!(&delta_1);
     dbg!(&delta_2);
 
-    let delta = delta_1 + delta_2;
+    let delta = delta_2 + delta_1;
+
     dbg!(&delta);
-    let delta_inv = BigInt::mod_inv(&delta, &zp),unwrap();
+    let gcd = delta.gcd(&zp);
+if gcd != BigInt::from(1) {
+    // Handle the error case, for example, by returning an error, retrying with different random values, or using a different protocol that doesn't require modular inversion.
+    panic!("GCD of delta and zp is not 1, modular inverse does not exist.");
+}
+    let delta_inv = BigInt::mod_inv(&delta, &zp).unwrap();
     dbg!(&delta_inv);
     
 
