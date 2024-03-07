@@ -111,7 +111,7 @@ fn ectf_protocol(
     let y2 = p2.y_coord().unwrap();
 
     // Alice and Bob sample random values
-    let zp = BigInt::from_bytes(b"115792089237316195423570985008687907853269984665640564039457584007908834671663");
+    let zp = BigInt::from_str_radix("115792089237316195423570985008687907853269984665640564039457584007908834671663", 10).unwrap();
     dbg!(&zp); 
 
     let rho_1 = BigInt::sample_below(&zp);
@@ -124,25 +124,25 @@ fn ectf_protocol(
     dbg!(&alpha_1);
     dbg!(&alpha_2);
     // Compute delta values
-    let delta_1 = -x1.clone() * rho_1.clone() + alpha_1.clone().to_bigint();
-    let delta_2 = x2.clone() * rho_2.clone() + alpha_2.clone().to_bigint();
+    let delta_1 = (-x1.clone() * rho_1.clone() + alpha_1.clone().to_bigint())%&zp;
+    let delta_2 = (x2.clone() * rho_2.clone() + alpha_2.clone().to_bigint())%&zp;
     dbg!(&delta_1);
     dbg!(&delta_2);
 
     let delta = delta_2 + delta_1;
 
     dbg!(&delta);
-    let gcd = delta.gcd(&zp); 
-    if gcd != BigInt::from(1) {
-        panic!("GCD of delta and zp is not 1, modular inverse does not exist.");
-    }
+    // let gcd = delta.gcd(&zp); 
+    // if gcd != BigInt::from(1) {
+    //     panic!("GCD of delta and zp is not 1, modular inverse does not exist.");
+    // }
     let delta_inv = BigInt::mod_inv(&delta, &zp).unwrap();
     dbg!(&delta_inv);
     
 
     // Compute eta values
-    let eta_1 = rho_1*delta_inv.clone();
-    let eta_2 = rho_2*delta_inv.clone();
+    let eta_1 = (rho_1*delta_inv.clone())%&zp;
+    let eta_2 = (rho_2*delta_inv.clone())%&zp;
     dbg!(&eta_1);
     dbg!(&eta_2);
 
@@ -151,8 +151,8 @@ fn ectf_protocol(
     dbg!(&beta_1);
     dbg!(&beta_2);
     // Compute lambda values
-    let lambda_1 = -y1 * eta_1 + beta_1.clone().to_bigint();
-    let lambda_2 = y2 * eta_2 + beta_2.clone().to_bigint();
+    let lambda_1 = (-y1 * eta_1 + beta_1.clone().to_bigint())%&zp;
+    let lambda_2 = (y2 * eta_2 + beta_2.clone().to_bigint())%&zp;
     dbg!(&lambda_1);
     dbg!(&lambda_2);
     // Run MTA for gamma values
@@ -160,8 +160,8 @@ fn ectf_protocol(
     dbg!(&gamma_1);
     dbg!(&gamma_2);
     // Compute final output s values
-    let s1 = (BigInt::from(2) * gamma_1.to_bigint()) +( (lambda_1.clone()*lambda_1.clone()) - x1.clone());
-    let s2 = (BigInt::from(2) * gamma_2.to_bigint()) + ((lambda_2.clone()*lambda_2.clone()) - x2.clone());
+    let s1 = ((BigInt::from(2) * gamma_1.to_bigint()) +( (lambda_1.clone()*lambda_1.clone()) - x1.clone()))%&zp;
+    let s2 = ((BigInt::from(2) * gamma_2.to_bigint()) + ((lambda_2.clone()*lambda_2.clone()) - x2.clone()))%&zp;
     dbg!(&s1);
     dbg!(&s2);
     (s1.into(), s2.into())
