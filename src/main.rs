@@ -111,7 +111,7 @@ fn ectf_protocol(
     let y2 = p2.y_coord().unwrap();
 
     // Alice and Bob sample random values
-    let zp = Scalar::<Secp256k1>::group_order();  
+    let zp = BigInt::from_bytes(b"115792089237316195423570985008687907853269984665640564039457584007908834671663");
     dbg!(&zp); 
 
     let rho_1 = BigInt::sample_below(&zp);
@@ -122,7 +122,7 @@ fn ectf_protocol(
     // Alice and Bob run MTA
     let (alpha_1, alpha_2) = mta_2(&Scalar::<Secp256k1>::from(-x1.clone()), &rho_1, &rho_2, &Scalar::<Secp256k1>::from(x2.clone()));
     dbg!(&alpha_1);
-    dbg!(&alpha_2); 
+    dbg!(&alpha_2);
     // Compute delta values
     let delta_1 = -x1.clone() * rho_1.clone() + alpha_1.clone().to_bigint();
     let delta_2 = x2.clone() * rho_2.clone() + alpha_2.clone().to_bigint();
@@ -132,7 +132,7 @@ fn ectf_protocol(
     let delta = delta_2 + delta_1;
 
     dbg!(&delta);
-    let gcd = delta.gcd(&zp);
+    let gcd = delta.gcd(&zp); 
     if gcd != BigInt::from(1) {
         panic!("GCD of delta and zp is not 1, modular inverse does not exist.");
     }
@@ -168,8 +168,8 @@ fn ectf_protocol(
 }
 fn main() {
     // Generate two points on the secp256k1 curve.
-    let p1 = Point::<Secp256k1>::generator().to_point();
-    let p2 = Point::<Secp256k1>::generator().to_point();
+    let p1 = Point::<Secp256k1>::generator().to_point(); // user
+    let p2 = Point::<Secp256k1>::generator().to_point(); // oracle
 
     // Run the ECtF protocol.
     let (s1, s2) = ectf_protocol(&p1, &p2);
