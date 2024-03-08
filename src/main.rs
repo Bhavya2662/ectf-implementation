@@ -14,6 +14,7 @@ use curv::arithmetic::traits::Converter;
 use curv::arithmetic::Zero;
 use curv::arithmetic::Samplable;
 use curv::elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar};
+use rand::Rng;
 
 fn mta(a: &Scalar<Secp256k1>, b: &Scalar<Secp256k1>) -> (Scalar<Secp256k1>, Scalar<Secp256k1>){
     let (ek, dk) = Paillier::keypair().keys();
@@ -167,10 +168,18 @@ fn ectf_protocol(
     (s1.into(), s2.into())
 }
 fn main() {
-    // Generate two points on the secp256k1 curve.
-    let p1 = Point::<Secp256k1>::generator().to_point(); // user
-    let p2 = Point::<Secp256k1>::generator().to_point(); // oracle
+    let s_1 = Scalar::<Secp256k1>::random();
+    let s_2 = Scalar::<Secp256k1>::random();
+    let p_1 = Point::<Secp256k1>::generator();
+    let p_2 = Point::<Secp256k1>::generator();
 
+    let p1: Point<Secp256k1> = s_1 * p_1;
+    let p2: Point<Secp256k1> = s_2 * p_2;
+    // Generate two points on the secp256k1 curve.
+    // let p1 = Point::<Secp256k1>::base_point2(); // user
+    // let p2 = Point::<Secp256k1>::generator().to_point(); // oracle
+    dbg!(&p1);
+    dbg!(&p2);
     // Run the ECtF protocol.
     let (s1, s2) = ectf_protocol(&p1, &p2);
 
