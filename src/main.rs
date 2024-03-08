@@ -17,6 +17,8 @@ use curv::elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar};
 use rand::Rng;
 
 fn mta(a: &Scalar<Secp256k1>, b: &Scalar<Secp256k1>) -> (Scalar<Secp256k1>, Scalar<Secp256k1>){
+    let zp = BigInt::from_str_radix("115792089237316195423570985008687907853269984665640564039457584007908834671663", 10).unwrap();
+
     let (ek, dk) = Paillier::keypair().keys();
 
     // Alice's input
@@ -28,7 +30,7 @@ fn mta(a: &Scalar<Secp256k1>, b: &Scalar<Secp256k1>) -> (Scalar<Secp256k1>, Scal
     let c_alice = Paillier::encrypt(&ek, RawPlaintext::from(&alice_input.to_bigint()));
 
     // Bob selects Beta Tag <– Z(N) -> where n is ek.n 
-    let beta_tag: BigInt = BigInt::sample_below(&ek.n);
+    let beta_tag: BigInt = BigInt::sample_below(&zp);
 
     // Compute Encrypt(BetaTag) using key of A
     let enc_betatag = Paillier::encrypt(&ek, RawPlaintext::from(&beta_tag));
@@ -41,13 +43,18 @@ fn mta(a: &Scalar<Secp256k1>, b: &Scalar<Secp256k1>) -> (Scalar<Secp256k1>, Scal
     let c_bob = Paillier::add(&ek, b_mul_c_alice.clone(), enc_betatag.clone());
 
     // Bob sets additive share Beta = -BetaTag mod n
-    let beta = Scalar::<Secp256k1>::from(&(&BigInt::zero() - &beta_tag) % &ek.n);
+    let beta = Scalar::<Secp256k1>::from(&(&BigInt::zero() - &beta_tag) % &zp);
 
     // Alice decrypts = dec(cB)
     let dec_alice = Paillier::decrypt(&dk, &c_bob);
 
     // Alice sets alpha = dec_alice mod n
-    let alpha = Scalar::<Secp256k1>::from(BigInt::from(dec_alice.clone()) % &ek.n);
+    let alpha = Scalar::<Secp256k1>::from(BigInt::from(dec_alice.clone()) % &zp);
+    let left = ((&alpha + &beta).to_bigint())%&zp;
+    dbg!(&left);
+    let right =( (alice_input * bob_input).to_bigint())%&zp;
+    dbg!(&right);
+    assert_eq!(left, right, "Verification failed: Left side ({}) is not equal to right side ({})", left, right);
     (alpha, beta)
 }
 
@@ -57,6 +64,8 @@ fn mta_2(
     r2: &BigInt,
     bob_secret: &Scalar<Secp256k1>, 
 ) -> (Scalar<Secp256k1>, Scalar<Secp256k1>) {
+    let zp = BigInt::from_str_radix("115792089237316195423570985008687907853269984665640564039457584007908834671663", 10).unwrap();
+
 
     // Generate Paillier key pair
     let (ek, dk) = Paillier::keypair().keys();
@@ -72,7 +81,7 @@ fn mta_2(
     let c_r1 = Paillier::encrypt(&ek, RawPlaintext::from(r1.clone()));
 
     // 4. Bob selects β' <- ZN
-    let beta_prime = BigInt::sample_below(&ek.n);
+    let beta_prime = BigInt::sample_below(&zp);
 
     // 5. Bob computes CB = (r2 * CA) + (a2 * CR1) + EncryptA(β')
     let r2_mul_c_alice =  Paillier::mul(&ek, RawPlaintext::from(r2.clone()), c_a.clone());
@@ -84,20 +93,20 @@ fn mta_2(
     let c_bob = Paillier::add(&ek, c_bob.clone(), enc_beta_prime.clone());
 
     // 6. Bob sets additive share δ2 = -β′ mod q
-    let delta_2 = (BigInt::zero() - &beta_prime) % &ek.n;
+    let delta_2 = (BigInt::zero() - &beta_prime) % &zp;
 
     // 8. Alice decrypts α' = dec(CB)
     let dec_alice = Paillier::decrypt(&dk, &c_bob);
 
     // 9. Alice sets δ 1 = α' mod q
-    let delta_1 = BigInt::from(dec_alice) % &ek.n;
+    let delta_1 = BigInt::from(dec_alice) % &zp;
 
 
-    // let left = &delta_1 + &delta_2;
-    // dbg!(&left);
-    // let right = (a1*r2) + (a2*r1);
-    // dbg!(&right);
-    // assert_eq!(left, right, "Verification failed: Left side ({}) is not equal to right side ({})", left, right);
+    let left = (&delta_1 + &delta_2)%&zp;
+    dbg!(&left);
+    let right = ((a1*r2) + (a2*r1))%&zp;
+    dbg!(&right);
+    assert_eq!(left, right, "Verification failed: Left side ({}) is not equal to right side ({})", left, right);
 
     // println!("MTA Test Satisfied");
     (delta_1.into(), delta_2.into())
@@ -125,13 +134,12 @@ fn ectf_protocol(
     dbg!(&alpha_1);
     dbg!(&alpha_2);
     // Compute delta values
-    let delta_1 = (-x1.clone() * rho_1.clone() + alpha_1.clone().to_bigint())%&zp;
-    let delta_2 = (x2.clone() * rho_2.clone() + alpha_2.clone().to_bigint())%&zp;
+    let delta_1 = ((-x1.clone() * rho_1.clone()) + alpha_1.clone().to_bigint())%&zp;
+    let delta_2 = ((x2.clone() * rho_2.clone() )+ alpha_2.clone().to_bigint())%&zp;
     dbg!(&delta_1);
     dbg!(&delta_2);
 
-    let delta = delta_2 + delta_1;
-
+    let delta = BigInt::mod_add(&delta_1, &delta_2, &zp);
     dbg!(&delta);
     // let gcd = delta.gcd(&zp); 
     // if gcd != BigInt::from(1) {
@@ -152,8 +160,8 @@ fn ectf_protocol(
     dbg!(&beta_1);
     dbg!(&beta_2);
     // Compute lambda values
-    let lambda_1 = (-y1 * eta_1 + beta_1.clone().to_bigint())%&zp;
-    let lambda_2 = (y2 * eta_2 + beta_2.clone().to_bigint())%&zp;
+    let lambda_1 = ((-y1 * eta_1) + beta_1.clone().to_bigint())%&zp;
+    let lambda_2 = ((y2 * eta_2 )+ beta_2.clone().to_bigint())%&zp;
     dbg!(&lambda_1);
     dbg!(&lambda_2);
     // Run MTA for gamma values
@@ -168,18 +176,24 @@ fn ectf_protocol(
     (s1.into(), s2.into())
 }
 fn main() {
-    let s_1 = Scalar::<Secp256k1>::random();
-    let s_2 = Scalar::<Secp256k1>::random();
-    let p_1 = Point::<Secp256k1>::generator();
-    let p_2 = Point::<Secp256k1>::generator();
+    let scalar_1 = Scalar::<Secp256k1>::random();
+    let scalar_2 = Scalar::<Secp256k1>::random();
+    let g_1 = Point::<Secp256k1>::generator();
+    let g_2 = Point::<Secp256k1>::generator();
+// mod p
+    let zp = BigInt::from_str_radix("115792089237316195423570985008687907853269984665640564039457584007908834671663", 10).unwrap();
 
-    let p1: Point<Secp256k1> = s_1 * p_1;
-    let p2: Point<Secp256k1> = s_2 * p_2;
+    let p1: Point<Secp256k1> = (scalar_1 * g_1)%&zp;
+    let p2: Point<Secp256k1> = (scalar_2 * g_2)%&zp;
     // Generate two points on the secp256k1 curve.
     // let p1 = Point::<Secp256k1>::base_point2(); // user
     // let p2 = Point::<Secp256k1>::generator().to_point(); // oracle
     dbg!(&p1);
     dbg!(&p2);
+    // let x1 = p1.x_coord().unwrap();
+    // dbg!(&x1);
+    // let zp = BigInt::from_str_radix("115792089237316195423570985008687907853269984665640564039457584007908834671663", 10).unwrap();
+    // dbg!(&x1%&zp);
     // Run the ECtF protocol.
     let (s1, s2) = ectf_protocol(&p1, &p2);
 
