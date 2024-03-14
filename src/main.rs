@@ -102,7 +102,7 @@ fn mta_2(
     let c_bob = Paillier::add(&ek, c_bob.clone(), enc_beta_prime.clone());
 
     // 6. Bob sets additive share δ2 = -β′ mod q
-    let delta_2 = (BigInt::zero() - &beta_prime) ;
+    let delta_2 = (BigInt::zero() - &beta_prime)  ;
 
     // 8. Alice decrypts α' = dec(CB)
     let dec_alice = Paillier::decrypt(&dk, &c_bob);
@@ -111,11 +111,11 @@ fn mta_2(
     let delta_1 = BigInt::from(dec_alice);
 
 
-    // let left = &delta_1 + &delta_2;
-    // dbg!(&left);
-    // let right = (a1*r2) + (a2*r1);
-    // dbg!(&right);
-    // assert_eq!(left, right, "Verification failed: Left side ({}) is not equal to right side ({})", left, right);
+    let left = &delta_1 + &delta_2;
+    dbg!(&left);
+    let right = (a1*r2) + (a2*r1);
+    dbg!(&right);
+    assert_eq!(left, right, "Verification failed: Left side ({}) is not equal to right side ({})", left, right);
 
     // println!("MTA Test Satisfied");
     (delta_1.into(), delta_2.into())
@@ -174,13 +174,13 @@ fn ectf_protocol(
     dbg!((alpha_1.clone()+alpha_2.clone()).to_bigint());
     dbg!(((-x1.clone() * rho_2.clone()) + (x2.clone() * rho_1.clone()))%order);
     // Compute delta values
-    let delta_1 = (-x1.clone() * rho_1.clone()) + alpha_1.clone().to_bigint();
-    let delta_2 = (x2.clone() * rho_2.clone() )+ alpha_2.clone().to_bigint();
+    let delta_1 = ((-x1.clone() * rho_1.clone()) + alpha_1.clone().to_bigint())%order;
+    let delta_2 = ((x2.clone() * rho_2.clone() )+ alpha_2.clone().to_bigint())%order;
     dbg!(&delta_1);
     dbg!(-(5%4));
     dbg!(&delta_2);
 
-    let delta = &delta_1 + &delta_2;
+    let delta = (&delta_1 + &delta_2) % order;
     dbg!(&delta);
     // let gcd = delta.gcd(&zp); 
     // if gcd != BigInt::from(1) {
@@ -191,8 +191,8 @@ fn ectf_protocol(
     
 
     // Compute eta values
-    let eta_1 = rho_1*delta_inv.clone();
-    let eta_2 = rho_2*delta_inv.clone();
+    let eta_1 = (rho_1*delta_inv.clone())%order;
+    let eta_2 = (rho_2*delta_inv.clone())%order;
     dbg!(&eta_1);
     dbg!(&eta_2);
     // assert_eq!((eta_1.clone() + eta_2.clone())%order, (y2.clone() - y1.clone()) / (x2.clone()-x1.clone()));
@@ -203,7 +203,7 @@ fn ectf_protocol(
     dbg!(&beta_1);
     dbg!(&beta_2);
     // Compute lambda values
-    let mut lambda_1 = ((-y1.clone() * eta_1) + beta_1.clone().to_bigint());
+    let mut lambda_1 = ((-y1.clone() * eta_1) + beta_1.clone().to_bigint())%order;
     // let mut lambda_1_pos = (y2.clone()-y1.clone())*BigInt::mod_inv(&(x2.clone() - x1.clone()), order).unwrap()%order;
 
     if BigInt::is_negative(&lambda_1) {
@@ -295,9 +295,9 @@ fn main() {
     let (s1, s2) = ectf_protocol(&p1, &p2);
 
     // Check if s1 + s2 = x where (x, y) = p1 + p2.
-    let p3 = p1 + p2;
+    let p3 = p1.x_coord().unwrap() + p2.x_coord().unwrap();
 
-    assert_eq!(((s1 + s2).to_bigint())%order, p3.x_coord().unwrap());
+    assert_eq!(((s1 + s2).to_bigint())%order, p3%order);
 
     println!("ECtF protocol completed successfully.");
 }
