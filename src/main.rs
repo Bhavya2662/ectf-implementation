@@ -7,8 +7,10 @@
 #![allow(unused_parens)]
 #![allow(dead_code)]
 use curv::arithmetic::Integer;
+use curv::arithmetic::NumberTests;
 use paillier::*;
 use curv::BigInt;
+use curv::arithmetic::BasicOps;
 use curv::arithmetic::Modulo;
 use curv::arithmetic::traits::Converter;
 use curv::arithmetic::Zero;
@@ -141,14 +143,41 @@ fn ectf_protocol(
     let (alpha_1, alpha_2) = mta_2(&Scalar::<Secp256k1>::from(-x1.clone()), &rho_1, &rho_2, &Scalar::<Secp256k1>::from(x2.clone()));
     dbg!(&alpha_1);
     dbg!(&alpha_2);
+    // let aa = (-x1.clone() * rho_2.clone()) + (x2.clone() * rho_1.clone());
+    // let aa = BigInt::from(2)*
     // Check 1 ----------------------------------------------------------------------------
-    assert_eq!((alpha_1.clone()+alpha_2.clone()).to_bigint(), ((-x1.clone() * rho_2.clone()) + (x2.clone() * rho_1.clone()))%order);
+    // assert_eq!((alpha_1.clone()+alpha_2.clone()).to_bigint(), ((-x1.clone() * rho_2.clone()) + (x2.clone() * rho_1.clone()))%order);
+    // let alpha_sum = (alpha_1.clone().to_bigint() + alpha_2.clone().to_bigint()) % order.clone();
+    // let mut sum_x1r2_x2r1 = ((-x1.clone() * rho_2.clone()) % order.clone()) + ((x2.clone()*rho_1.clone()% order.clone()));
+    
+    // // sum_x1r2_x2r1 = -sum_x1r2_x2r1.clone();
+
+    // dbg!(&alpha_sum);
+    // dbg!(&sum_x1r2_x2r1);
+    // assert_eq!(alpha_sum.clone(), sum_x1r2_x2r1.clone(),"Check 1 Failed");
+    dbg!((alpha_1.clone()+alpha_2.clone()).to_bigint());
+    let right_ch1 = (alpha_1.clone()+alpha_2.clone()).to_bigint();
+    let mut left_ch1 = ((-x1.clone() * rho_2.clone()) + (x2.clone() * rho_1.clone()))%order;
+
+    if BigInt::is_negative(&left_ch1) {
+        left_ch1 = order - (left_ch1.abs() % order);
+    }
+
+    dbg!(&left_ch1);
+    dbg!(order - ( left_ch1.abs() % order));
+    dbg!(((-x1.clone() * rho_2.clone()) + (x2.clone() * rho_1.clone()))%order);
+
+    // Check 1 ----------------------------------------------------------------------------
+    assert_eq!(right_ch1, left_ch1);
+    println!("check 1 passed");
+
     dbg!((alpha_1.clone()+alpha_2.clone()).to_bigint());
     dbg!(((-x1.clone() * rho_2.clone()) + (x2.clone() * rho_1.clone()))%order);
     // Compute delta values
     let delta_1 = (-x1.clone() * rho_1.clone()) + alpha_1.clone().to_bigint();
     let delta_2 = (x2.clone() * rho_2.clone() )+ alpha_2.clone().to_bigint();
     dbg!(&delta_1);
+    dbg!(-(5%4));
     dbg!(&delta_2);
 
     let delta = &delta_1 + &delta_2;
@@ -166,6 +195,7 @@ fn ectf_protocol(
     let eta_2 = rho_2*delta_inv.clone();
     dbg!(&eta_1);
     dbg!(&eta_2);
+    // assert_eq!((eta_1.clone() + eta_2.clone())%order, (y2.clone() - y1.clone()) / (x2.clone()-x1.clone()));
     // Check 2------------------------------------------------------------------------------
     assert_eq!((eta_1.clone() + eta_2.clone())%order, (BigInt::mod_inv(&(x2.clone() - x1.clone()), order).unwrap())%order );
     // Run MTA for beta values
@@ -173,22 +203,63 @@ fn ectf_protocol(
     dbg!(&beta_1);
     dbg!(&beta_2);
     // Compute lambda values
-    let lambda_1 = (-y1.clone() * eta_1) + beta_1.clone().to_bigint();
-    let lambda_2 = (y2.clone() * eta_2 )+ beta_2.clone().to_bigint();
+    let mut lambda_1 = ((-y1.clone() * eta_1) + beta_1.clone().to_bigint());
+    // let mut lambda_1_pos = (y2.clone()-y1.clone())*BigInt::mod_inv(&(x2.clone() - x1.clone()), order).unwrap()%order;
+
+    if BigInt::is_negative(&lambda_1) {
+        lambda_1 = order - (lambda_1.abs() % order);
+    }
+    let mut lambda_2 =( (y2.clone() * eta_2 )+ beta_2.clone().to_bigint())%order;
+    if BigInt::is_negative(&lambda_2) {
+        lambda_2 = order - (lambda_2.abs() % order);
+    }
     dbg!(&lambda_1);
     dbg!(&lambda_2);
     let lambda = lambda_1.clone() + lambda_2.clone();
+    let slope = (y2.clone()-y1.clone())*BigInt::mod_inv(&(x2.clone() - x1.clone()), order).unwrap()%order;
     // Check 3----------------------------------------------------------------------------
-    assert_eq!((lambda_1.clone()+ lambda_2.clone())%order, ((y2.clone()-y1.clone())*BigInt::mod_inv(&(x2.clone() - x1.clone()), order).unwrap())%order );
+    // assert_eq!((lambda_1.clone()+ lambda_2.clone())%order, ((y2.clone()-y1.clone())*BigInt::mod_inv(&(x2.clone() - x1.clone()), order).unwrap())%order );
+    let right_ch3 = (lambda_1.clone()+ lambda_2.clone())%order;
+    let mut left_ch3 = (y2.clone()-y1.clone())*BigInt::mod_inv(&(x2.clone() - x1.clone()), order).unwrap()%order;
+
+    if BigInt::is_negative(&left_ch3) {
+        left_ch3 = order - (left_ch3.abs() % order);
+    }
+
+    dbg!(&left_ch3);
+    dbg!(order - ( left_ch3.abs() % order));
+    dbg!((y2.clone()-y1.clone())*BigInt::mod_inv(&(x2.clone() - x1.clone()), order).unwrap()%order);
+    assert_eq!(right_ch1, left_ch1);
+
     // Run MTA for gamma values
     let (gamma_1, gamma_2) = mta(&Scalar::<Secp256k1>::from(lambda_1.clone()), &Scalar::<Secp256k1>::from(lambda_2.clone()));
     dbg!(&gamma_1);
     dbg!(&gamma_2);
+    let left = ((&gamma_1 + &gamma_2).to_bigint());
+    dbg!(&left);
+    let right =( (&Scalar::<Secp256k1>::from(lambda_1.clone()) * &Scalar::<Secp256k1>::from(lambda_2.clone())).to_bigint());
+    dbg!(&right);
+    assert_eq!(left, right, "Verification failed: Left side ({}) is not equal to right side ({})", left, right);
+
+    let mut s = (slope.clone() * slope.clone() - x1.clone() - x2.clone())%order;
+    if BigInt::is_negative(&s) {
+        s = order - (s.abs() % order);
+    }
+    dbg!(&s);
+
     // Compute final output s values
-    let s1 = (BigInt::from(2) * gamma_1.to_bigint()) +( (lambda_1.clone()*lambda_1.clone()) - x1.clone());
-    let s2 = (BigInt::from(2) * gamma_2.to_bigint()) + ((lambda_2.clone()*lambda_2.clone()) - x2.clone());
+    let mut s1 = ((BigInt::from(2) * gamma_1.to_bigint()) +( (lambda_1.clone()*lambda_1.clone()) - x1.clone()))%order;
+    if BigInt::is_negative(&s1) {
+        s1 = order - (s1.abs() % order);
+    }
+    let mut s2 = ((BigInt::from(2) * gamma_2.to_bigint()) + ((lambda_2.clone()*lambda_2.clone()) - x2.clone()))%order;
+    if BigInt::is_negative(&s2) {
+        s2 = order - (s2.abs() % order);
+    }
     dbg!(&s1);
     dbg!(&s2);
+    assert_eq!((s1.clone() + s2.clone())%order, s);
+
     // Check 4----------------------------------------------------------------------------
     assert_eq!((s1.clone() + s2.clone())%order, ((lambda.clone()*lambda.clone() )- x1.clone() - x2.clone())%order);
     (s1.into(), s2.into())
@@ -225,7 +296,8 @@ fn main() {
 
     // Check if s1 + s2 = x where (x, y) = p1 + p2.
     let p3 = p1 + p2;
-    assert_eq!((s1 + s2).to_bigint(), p3.x_coord().unwrap());
+
+    assert_eq!(((s1 + s2).to_bigint())%order, p3.x_coord().unwrap());
 
     println!("ECtF protocol completed successfully.");
 }
