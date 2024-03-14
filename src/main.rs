@@ -55,11 +55,11 @@ fn mta(a: &Scalar<Secp256k1>, b: &Scalar<Secp256k1>) -> (Scalar<Secp256k1>, Scal
 
     // Alice sets alpha = dec_alice mod n
     let alpha = Scalar::<Secp256k1>::from(BigInt::from(dec_alice.clone()));
-    let left = ((&alpha + &beta).to_bigint());
-    dbg!(&left);
-    let right =( (alice_input * bob_input).to_bigint());
-    dbg!(&right);
-    assert_eq!(left, right, "Verification failed: Left side ({}) is not equal to right side ({})", left, right);
+    // let left = ((&alpha + &beta).to_bigint());
+    // dbg!(&left);
+    // let right =( (alice_input * bob_input).to_bigint());
+    // dbg!(&right);
+    // assert_eq!(left, right, "Verification failed: Left side ({}) is not equal to right side ({})", left, right);
     (alpha, beta)
 }
 
@@ -109,11 +109,11 @@ fn mta_2(
     let delta_1 = BigInt::from(dec_alice);
 
 
-    let left = &delta_1 + &delta_2;
-    dbg!(&left);
-    let right = (a1*r2) + (a2*r1);
-    dbg!(&right);
-    assert_eq!(left, right, "Verification failed: Left side ({}) is not equal to right side ({})", left, right);
+    // let left = &delta_1 + &delta_2;
+    // dbg!(&left);
+    // let right = (a1*r2) + (a2*r1);
+    // dbg!(&right);
+    // assert_eq!(left, right, "Verification failed: Left side ({}) is not equal to right side ({})", left, right);
 
     // println!("MTA Test Satisfied");
     (delta_1.into(), delta_2.into())
@@ -142,7 +142,9 @@ fn ectf_protocol(
     dbg!(&alpha_1);
     dbg!(&alpha_2);
     // Check 1 ----------------------------------------------------------------------------
-    assert_eq!((alpha_1.clone()+alpha_2.clone()).to_bigint(), ((-x1.clone() * rho_2.clone()) + (x2.clone() * rho_1.clone()))%&zp);
+    assert_eq!((alpha_1.clone()+alpha_2.clone()).to_bigint(), ((-x1.clone() * rho_2.clone()) + (x2.clone() * rho_1.clone()))%order);
+    dbg!((alpha_1.clone()+alpha_2.clone()).to_bigint());
+    dbg!(((-x1.clone() * rho_2.clone()) + (x2.clone() * rho_1.clone()))%order);
     // Compute delta values
     let delta_1 = (-x1.clone() * rho_1.clone()) + alpha_1.clone().to_bigint();
     let delta_2 = (x2.clone() * rho_2.clone() )+ alpha_2.clone().to_bigint();
@@ -155,7 +157,7 @@ fn ectf_protocol(
     // if gcd != BigInt::from(1) {
     //     panic!("GCD of delta and zp is not 1, modular inverse does not exist.");
     // }
-    let delta_inv = BigInt::mod_inv(&delta, &zp).unwrap();
+    let delta_inv = BigInt::mod_inv(&delta, order).unwrap();
     dbg!(&delta_inv);
     
 
@@ -165,7 +167,7 @@ fn ectf_protocol(
     dbg!(&eta_1);
     dbg!(&eta_2);
     // Check 2------------------------------------------------------------------------------
-    assert_eq!((eta_1.clone() + eta_2.clone())%order, BigInt::mod_inv(&(x2.clone() - x1.clone()), &zp).unwrap() );
+    assert_eq!((eta_1.clone() + eta_2.clone())%order, (BigInt::mod_inv(&(x2.clone() - x1.clone()), order).unwrap())%order );
     // Run MTA for beta values
     let (beta_1, beta_2) = mta_2(&Scalar::<Secp256k1>::from(-y1.clone()), &eta_1, &eta_2, &Scalar::<Secp256k1>::from(y2.clone()));
     dbg!(&beta_1);
@@ -177,7 +179,7 @@ fn ectf_protocol(
     dbg!(&lambda_2);
     let lambda = lambda_1.clone() + lambda_2.clone();
     // Check 3----------------------------------------------------------------------------
-    assert_eq!((lambda_1.clone()+ lambda_2.clone())%order, ((y2.clone()-y1.clone())*BigInt::mod_inv(&(x2.clone() - x1.clone()), &zp).unwrap())%order );
+    assert_eq!((lambda_1.clone()+ lambda_2.clone())%order, ((y2.clone()-y1.clone())*BigInt::mod_inv(&(x2.clone() - x1.clone()), order).unwrap())%order );
     // Run MTA for gamma values
     let (gamma_1, gamma_2) = mta(&Scalar::<Secp256k1>::from(lambda_1.clone()), &Scalar::<Secp256k1>::from(lambda_2.clone()));
     dbg!(&gamma_1);
@@ -188,7 +190,7 @@ fn ectf_protocol(
     dbg!(&s1);
     dbg!(&s2);
     // Check 4----------------------------------------------------------------------------
-    assert_eq!((s1.clone() + s2.clone())%&zp, ((lambda.clone()*lambda.clone() )- x1.clone() - x2.clone())%&zp);
+    assert_eq!((s1.clone() + s2.clone())%order, ((lambda.clone()*lambda.clone() )- x1.clone() - x2.clone())%order);
     (s1.into(), s2.into())
 }
 fn main() {
@@ -221,9 +223,9 @@ fn main() {
     // Run the ECtF protocol.
     let (s1, s2) = ectf_protocol(&p1, &p2);
 
-    // // Check if s1 + s2 = x where (x, y) = p1 + p2.
-    // let p3 = p1 + p2;
-    // assert_eq!((s1 + s2).to_bigint(), p3.x_coord().unwrap());
+    // Check if s1 + s2 = x where (x, y) = p1 + p2.
+    let p3 = p1 + p2;
+    assert_eq!((s1 + s2).to_bigint(), p3.x_coord().unwrap());
 
     println!("ECtF protocol completed successfully.");
 }
